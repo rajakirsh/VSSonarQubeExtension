@@ -51,6 +51,8 @@
     <Compile Include="SupportTests.fs" />
     <Compile Include="KeyTests.fs" />
     <None Include="SonarLocalAnalyser.Test.licenseheader" />
+    <None Include="packages.config" />
+    <None Include="app.config" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Foq">
@@ -70,7 +72,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="nunit.framework">
-      <HintPath>..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
+      <HintPath>..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />

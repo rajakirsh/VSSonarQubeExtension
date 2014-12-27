@@ -124,7 +124,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Windows.Interactivity, Version=4.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\MahApps.Metro.0.14.0.0\lib\net45\System.Windows.Interactivity.dll</HintPath>
+      <HintPath>..\packages\MvvmLightLibs.5.0.2.0\lib\net45\System.Windows.Interactivity.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CodeAnalysis">
       <HintPath>..\packages\Microsoft.CodeAnalysis.Common.1.0.0-beta1-20141031-01\lib\portable-net45+win8\Microsoft.CodeAnalysis.dll</HintPath>
@@ -305,6 +305,10 @@
       <Project>{3311C918-B662-436D-8BC8-F38B447B1414}</Project>
       <Name>VSSonarPlugins</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SQPluginManager\SQPluginManager.fsproj">
+      <Project>{d98f566b-3079-4663-91e9-724d3d714225}</Project>
+      <Name>SQPluginManager</Name>
+    </ProjectReference>	
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
