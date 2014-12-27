@@ -15,7 +15,9 @@
 namespace VSSonarExtensionUi.View.Helpers
 {
     using System;
+    using System.Collections.Generic;
     using System.Windows;
+    using System.Linq;
 
     /// <summary>
     ///     Interaction logic for UserControl1.xaml

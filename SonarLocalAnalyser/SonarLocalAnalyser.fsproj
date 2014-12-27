@@ -37,10 +37,10 @@
     </DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition="!Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\4.0\Framework\v4.0\Microsoft.FSharp.Targets')">
-	<FSharpTargetsPath>..\references\FSharp431\Microsoft.FSharp.Targets</FSharpTargetsPath>
-  </PropertyGroup>  
+    <FSharpTargetsPath>..\references\FSharp431\Microsoft.FSharp.Targets</FSharpTargetsPath>
+  </PropertyGroup>
   <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\4.0\Framework\v4.0\Microsoft.FSharp.Targets')">
-	<FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\4.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
+    <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\4.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
   </PropertyGroup>
   <Import Project="$(FSharpTargetsPath)" />
   <Import Project="$(MSBuildFolder)\AssemblyPatcherTask.targets" />
@@ -55,8 +55,8 @@
     <Reference Include="Microsoft.Build.Utilities.v4.0" />
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-	  <HintPath>$(ReferencesFolder)\FSharp431\FSharp.Core.dll</HintPath>
-	  <SpecificVersion>True</SpecificVersion>
+      <HintPath>$(ReferencesFolder)\FSharp431\FSharp.Core.dll</HintPath>
+      <SpecificVersion>True</SpecificVersion>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -80,6 +80,11 @@
     <ProjectReference Include="..\SonarRestService\SonarRestService.fsproj">
       <Name>SonarRestService</Name>
       <Project>{64728a55-1166-4ec6-b066-22c4e01fc1c7}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\SQPluginManager\SQPluginManager.fsproj">
+      <Name>SQPluginManager</Name>
+      <Project>{d98f566b-3079-4663-91e9-724d3d714225}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\VSSonarPlugins\VSSonarPlugins.csproj">

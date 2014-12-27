@@ -6,11 +6,6 @@ open System
 open System.Text
 open System.IO
 open System.Reflection
-open Microsoft.CodeAnalysis.CodeFixes
-open Microsoft.CodeAnalysis.Diagnostics
-open Microsoft.CodeAnalysis
-open ExtensionTypes
-open ZeroMQ
 open System.Threading
 open VSSonarPlugins
 
@@ -20,14 +15,16 @@ type AssemblyInfo(fullName:string) =
     member val Version = "" with get, set
     member val Path = "" with get, set
 
-type MenuPlugin(idIn:string) =    
+[<AllowNullLiteral>]
+type MenuPluginHolder(idIn:string) =    
     member val Id : string = idIn with get, set    
     member val RefAssemblies : AssemblyInfo List = List.Empty with get, set
     member val Assembly : AssemblyInfo = null with get, set
     member val Plugin : IMenuCommandPlugin = null with get, set
     member val ErrorMessage : string = "" with get, set
 
-type AnalysisPlugin(idIn:string) =    
+[<AllowNullLiteral>]
+type AnalysisPluginHolder(idIn:string) =    
     member val Id : string = idIn with get, set    
     member val RefAssemblies : AssemblyInfo List = List.Empty with get, set
     member val Assembly : AssemblyInfo = null with get, set

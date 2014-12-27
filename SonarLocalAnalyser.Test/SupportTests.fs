@@ -22,6 +22,7 @@ open VSSonarPlugins
 
 open ExtensionTypes
 open SonarRestService
+open SQPluginManager
 
 type SupportTests() =
 
@@ -38,8 +39,10 @@ type SupportTests() =
     member test.``Should throw exception project is not associated for multilanguage scenario`` () =
         let project = new Resource()
 
-        let listofPlugins = new System.Collections.Generic.List<IAnalysisPlugin>()
-        listofPlugins.Add(Mock<IAnalysisPlugin>().Create())                
+        let listofPlugins = new System.Collections.Generic.List<AnalysisPluginHolder>()
+        let holder = AnalysisPluginHolder("id")
+        holder.Plugin <- Mock<IAnalysisPlugin>().Create()
+        listofPlugins.Add(holder)                
         let analyser = new SonarLocalAnalyser(listofPlugins, Mock<ISonarRestService>().Create(), Mock<IConfigurationHelper>().Create())        
         (analyser.IsMultiLanguageAnalysis(null)) |> should throw typeof<ProjectNotAssociatedException>
 
@@ -47,8 +50,10 @@ type SupportTests() =
     member test.``Should allow multi language if lang is not defined`` () =
         let project = new Resource()
 
-        let listofPlugins = new System.Collections.Generic.List<IAnalysisPlugin>()
-        listofPlugins.Add(Mock<IAnalysisPlugin>().Create())
+        let listofPlugins = new System.Collections.Generic.List<AnalysisPluginHolder>()
+        let holder = AnalysisPluginHolder("id")
+        holder.Plugin <- Mock<IAnalysisPlugin>().Create()
+        listofPlugins.Add(holder)
         let analyser = new SonarLocalAnalyser(listofPlugins, Mock<ISonarRestService>().Create(), Mock<IConfigurationHelper>().Create())
         (analyser.IsMultiLanguageAnalysis(project)) |> should be True
 
@@ -56,8 +61,10 @@ type SupportTests() =
     member test.``Should not allow multi language if lang is defined`` () =
         let project = new Resource(Lang = "c++")
 
-        let listofPlugins = new System.Collections.Generic.List<IAnalysisPlugin>()
-        listofPlugins.Add(Mock<IAnalysisPlugin>().Create())
+        let listofPlugins = new System.Collections.Generic.List<AnalysisPluginHolder>()
+        let holder = AnalysisPluginHolder("id")
+        holder.Plugin <- Mock<IAnalysisPlugin>().Create()
+        listofPlugins.Add(holder)
         let analyser = new SonarLocalAnalyser(listofPlugins, Mock<ISonarRestService>().Create(), Mock<IConfigurationHelper>().Create())
         (analyser.IsMultiLanguageAnalysis(project)) |> should be False
 

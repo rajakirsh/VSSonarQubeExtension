@@ -19,11 +19,11 @@ type SQPluginManagerTest() =
             
     [<Test>]
     member test.``Test Loading of MenuPlugin Correctly`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         let plugin = adapter.TestLoadingOfMenuPlugins("SqaleUi.VSQ")
 
-        if adapter.LoadingErrors.Length <> 0 then
-            adapter.LoadingErrors |> List.iter (fun elem -> printf "%s" elem)
+        if adapter.LoadingErrors().Length <> 0 then
+            adapter.LoadingErrors() |> List.iter (fun elem -> printf "%s" elem)
 
         Directory.Exists(Path.Combine(Environment.CurrentDirectory, "tmp")) |> should be False
         plugin.[0].Id |> should equal "Sonar Quality Editor"
@@ -32,11 +32,11 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Install MenuPlugin Correctly`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         let plugins = adapter.InstallMenuPlugin("SqaleUi.VSQ", List.Empty)
 
-        if adapter.LoadingErrors.Length <> 0 then
-            adapter.LoadingErrors |> List.iter (fun elem -> printf "%s" elem)
+        if adapter.LoadingErrors().Length <> 0 then
+            adapter.LoadingErrors() |> List.iter (fun elem -> printf "%s" elem)
 
         Directory.Exists(Path.Combine(Environment.CurrentDirectory, "tmp")) |> should be False
         Directory.Exists(Path.Combine(Environment.CurrentDirectory, "plugins")) |> should be True
@@ -47,11 +47,11 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Test Loading of Analysis Plugin Correctly`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         let plugins = adapter.TestLoadingOfAnalysisPlugins("CxxPlugin.VSQ")
 
-        if adapter.LoadingErrors.Length <> 0 then
-            adapter.LoadingErrors |> List.iter (fun elem -> printf "%s" elem)
+        if adapter.LoadingErrors().Length <> 0 then
+            adapter.LoadingErrors() |> List.iter (fun elem -> printf "%s" elem)
 
         Directory.Exists(Path.Combine(Environment.CurrentDirectory, "tmp")) |> should be False
         plugins.[0].Id |> should equal "CxxPlugin"
@@ -60,11 +60,11 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Install Analysis Plugin Correctly`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         let plugins = adapter.InstallAnalysisPlugin("CxxPlugin.VSQ", List.Empty)
 
-        if adapter.LoadingErrors.Length <> 0 then
-            adapter.LoadingErrors |> List.iter (fun elem -> printf "%s" elem)
+        if adapter.LoadingErrors().Length <> 0 then
+            adapter.LoadingErrors() |> List.iter (fun elem -> printf "%s" elem)
 
         Directory.Exists(Path.Combine(Environment.CurrentDirectory, "tmp")) |> should be False
         Directory.Exists(Path.Combine(Environment.CurrentDirectory, "plugins")) |> should be True
@@ -75,7 +75,7 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Load Menu Plugins`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         adapter.InstallMenuPlugin("SqaleUi.VSQ", List.Empty) |> ignore
         adapter.InstallAnalysisPlugin("CxxPlugin.VSQ", List.Empty)  |> ignore
 
@@ -87,7 +87,7 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Load Analysis Plugins`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         adapter.InstallMenuPlugin("SqaleUi.VSQ", List.Empty) |> ignore
         adapter.InstallAnalysisPlugin("CxxPlugin.VSQ", List.Empty)  |> ignore
 
@@ -99,7 +99,7 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Delete Menu Plugins`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         adapter.InstallMenuPlugin("SqaleUi.VSQ", List.Empty) |> ignore
         adapter.InstallAnalysisPlugin("CxxPlugin.VSQ", List.Empty)  |> ignore
 
@@ -116,7 +116,7 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Should Keep Reference Assemblies in Place for Menu Plugins`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         adapter.InstallMenuPlugin("SqaleUi.VSQ", List.Empty) |> ignore
         adapter.InstallAnalysisPlugin("CxxPlugin.VSQ", List.Empty)  |> ignore
 
@@ -124,7 +124,7 @@ type SQPluginManagerTest() =
         plugins.Length |> should equal 1
         plugins.[0].RefAssemblies.Length |> should equal 2
 
-        let plugin2 = MenuPlugin("another")
+        let plugin2 = MenuPluginHolder("another")
         plugin2.RefAssemblies <- plugins.[0].RefAssemblies
         plugins <- plugins @ [plugin2]
 
@@ -137,7 +137,7 @@ type SQPluginManagerTest() =
 
     [<Test>]
     member test.``Delete Analysis Plugins`` () = 
-        let adapter = SQPluginManager(Environment.CurrentDirectory)
+        let adapter = SQPluginManager(Environment.CurrentDirectory) :> ISQPluginManager
         adapter.InstallMenuPlugin("SqaleUi.VSQ", List.Empty) |> ignore
         adapter.InstallAnalysisPlugin("CxxPlugin.VSQ", List.Empty)  |> ignore
 

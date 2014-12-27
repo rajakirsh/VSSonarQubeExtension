@@ -95,6 +95,26 @@ namespace VSSonarQubeExtension
             return MColor.FromArgb(color.A, color.R, color.G, color.B);
         }
 
+        public void CloseToolWindow(int id)
+        {
+            try
+            {
+                // Find existing windows. 
+                ToolWindowPane currentWindow = this.FindToolWindow(typeof(PluginToolWindow), id, false);
+                if (currentWindow == null)
+                {
+                    return;
+                }
+
+                var windowFrame = (IVsWindowFrame)currentWindow.Frame;
+                ErrorHandler.ThrowOnFailure(windowFrame.CloseFrame((uint)__FRAMECLOSE.FRAMECLOSE_NoSave));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+        }
+
         /// <summary>
         ///     The show tool window.
         /// </summary>
@@ -210,6 +230,7 @@ namespace VSSonarQubeExtension
                         }
 
                         SonarQubeViewModelFactory.SQViewModel.PluginRequest += this.LoadPluginIntoNewToolWindow;
+                        SonarQubeViewModelFactory.SQViewModel.RemovePluginRequest += this.RemovePluginWindow;
                         this.CloseToolWindow();
 
                         this.StartSolutionListeners();
@@ -305,6 +326,12 @@ namespace VSSonarQubeExtension
             menuCommandId = new CommandID(GuidList.GuidStartAnalysisSolutionCTXCmdSet, PkgCmdIdList.CmdidRunAnalysisInProject);
             this.runAnalysisInProjectCmd = new OleMenuCommand(this.ShowIssuesToolWindow, menuCommandId);
             mcs.AddCommand(this.runAnalysisInProjectCmd);
+        }
+
+
+        private void RemovePluginWindow(object sender, EventArgs eventArgs)
+        {
+            this.CloseToolWindow(SonarQubeViewModelFactory.SQViewModel.IdOfPluginToRemove);
         }
 
         /// <summary>

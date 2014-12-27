@@ -5,16 +5,19 @@ open System
 open System.Text
 open System.IO
 open System.Reflection
-open Microsoft.CodeAnalysis
-open ExtensionTypes
-open ZeroMQ
 open System.Threading
 open System.Diagnostics
 open System.IO.Compression
 open VSSonarPlugins
 
 type SQPluginManager(basePath : string) =     
-    let installFolder = Path.Combine(basePath, "plugins")
+    let installFolder = 
+        let pathdata = Path.Combine(basePath, "plugins")
+        if not(Directory.Exists(pathdata)) then
+            Directory.CreateDirectory(pathdata) |> ignore
+
+        pathdata
+
     let mutable loadingErrors = List.Empty
     let mutable installErrors = List.Empty
 
@@ -34,10 +37,10 @@ type SQPluginManager(basePath : string) =
 
         files
 
-    let VerifyBinaryCompatibilityAnalysisPlugins(inPlugins : AnalysisPlugin List, currPlugins : AnalysisPlugin List) =        
+    let VerifyBinaryCompatibilityAnalysisPlugins(inPlugins : AnalysisPluginHolder List, currPlugins : AnalysisPluginHolder List) =        
         installErrors <- []
 
-        let assemblyCheck(currPlugin : AnalysisPlugin, c : AssemblyInfo) =
+        let assemblyCheck(currPlugin : AnalysisPluginHolder, c : AssemblyInfo) =
             let data = currPlugin.RefAssemblies |> List.tryFind(fun elem -> c.Version.Equals(elem.Version) && c.Path.Equals(elem.Path))
             match data with
             | Some v -> installErrors <- installErrors @ [(sprintf "%s %s : %s vs %s : %s" v.FullName v.Path v.Version c.Path c.Version)]
@@ -47,7 +50,7 @@ type SQPluginManager(basePath : string) =
             currPlugins |> List.iter (fun elem -> assemblyCheck(elem, c))
 
 
-        let checkAgainstInstalledPlugins(c : AnalysisPlugin) =
+        let checkAgainstInstalledPlugins(c : AnalysisPluginHolder) =
             c.RefAssemblies |> List.iter (fun c -> checkAgainstInstalledPluginsAssemblies(c))
             
         inPlugins |> List.iter (fun c -> checkAgainstInstalledPlugins(c))
@@ -81,7 +84,7 @@ type SQPluginManager(basePath : string) =
         let typesd = asmLoaderProxy.GetType()
         let getdiag = typesd.GetMethod("GetMenuPlugins")
 
-        let mutable pluginsOut : MenuPlugin List = List.Empty
+        let mutable pluginsOut : MenuPluginHolder List = List.Empty
 
         let mutable listofAssemblyes : AssemblyInfo List = List.Empty
 
@@ -97,7 +100,7 @@ type SQPluginManager(basePath : string) =
 
             let plugins = (getdiag.Invoke(asmLoaderProxy, data) :?> IMenuCommandPlugin List)
             for plugin in plugins do
-                let newPlug = MenuPlugin(plugin.GetHeader())    
+                let newPlug = MenuPluginHolder(plugin.GetHeader())    
                 newPlug.Plugin <- plugin
                 newPlug.Assembly <- assemblyData
                 pluginsOut <- pluginsOut @ [newPlug]
@@ -110,10 +113,10 @@ type SQPluginManager(basePath : string) =
         AppDomain.Unload(domain)
         pluginsOut
 
-    let VerifyBinaryCompatibilityMenuPlugins(inPlugins : MenuPlugin List, currPlugins : MenuPlugin  List) =        
+    let VerifyBinaryCompatibilityMenuPlugins(inPlugins : MenuPluginHolder List, currPlugins : MenuPluginHolder  List) =        
         installErrors <- []
 
-        let assemblyCheck(currPlugin : MenuPlugin , c : AssemblyInfo) =
+        let assemblyCheck(currPlugin : MenuPluginHolder , c : AssemblyInfo) =
             let data = currPlugin.RefAssemblies |> List.tryFind(fun elem -> not(c.Version.Equals(elem.Version)) && c.Path.Equals(elem.Path))
             match data with
             | Some v -> installErrors <- installErrors @ [(sprintf "%s %s : %s vs %s : %s" v.FullName v.Path v.Version c.Path c.Version)]
@@ -123,7 +126,7 @@ type SQPluginManager(basePath : string) =
             currPlugins |> List.iter (fun elem -> assemblyCheck(elem, c))
 
 
-        let checkAgainstInstalledPlugins(c : MenuPlugin ) =
+        let checkAgainstInstalledPlugins(c : MenuPluginHolder ) =
             c.RefAssemblies |> List.iter (fun c -> checkAgainstInstalledPluginsAssemblies(c))
             
         inPlugins |> List.iter (fun c -> checkAgainstInstalledPlugins(c))
@@ -157,7 +160,7 @@ type SQPluginManager(basePath : string) =
         let typesd = asmLoaderProxy.GetType()
         let getdiag = typesd.GetMethod("GetAnalysisPlugins")
 
-        let mutable pluginsOut : AnalysisPlugin List = List.Empty
+        let mutable pluginsOut : AnalysisPluginHolder List = List.Empty
 
         let mutable listofAssemblyes : AssemblyInfo List = List.Empty
 
@@ -173,7 +176,7 @@ type SQPluginManager(basePath : string) =
 
             let plugins = (getdiag.Invoke(asmLoaderProxy, data) :?> IAnalysisPlugin List)
             for plugin in plugins do
-                let newPlug = AnalysisPlugin(plugin.GetKey(null))    
+                let newPlug = AnalysisPluginHolder(plugin.GetKey(null))    
                 newPlug.Plugin <- plugin
                 newPlug.Assembly <- assemblyData
                 pluginsOut <- pluginsOut @ [newPlug]
@@ -198,129 +201,136 @@ type SQPluginManager(basePath : string) =
 
         assembliesininstall
 
-    member x.LoadingErrors = loadingErrors
-    member x.InstallErrors = installErrors
+    interface ISQPluginManager with
+        member x.LoadingErrors() = loadingErrors
+        member x.InstallErrors() = installErrors
 
-
-    member x.TestLoadingOfMenuPlugins(vsqfiletoload:string) =        
-        let files = UnzipFiles(vsqfiletoload, "tmp")
-        let plugins = GetMenuPlugins(files, "tmp")
-        Directory.Delete(Path.Combine(basePath, "tmp"), true)
-        plugins
-
-    member x.TestLoadingOfAnalysisPlugins(vsqfiletoload:string) =        
-        let files = UnzipFiles(vsqfiletoload, "tmp")
-        let plugins = GetAnalysisPlugins(files, "tmp")
-        Directory.Delete(Path.Combine(basePath, "tmp"), true)  
-        plugins
-
-    member x.InstallAnalysisPlugin(vsqfiletoload:string, currentInstalledPlugins : AnalysisPlugin List) =
-        let plugins = x.TestLoadingOfAnalysisPlugins(vsqfiletoload)
-
-        if VerifyBinaryCompatibilityAnalysisPlugins(plugins, currentInstalledPlugins) then
-            if not(plugins.IsEmpty) then
-                UnzipFiles(vsqfiletoload, installFolder) |> ignore           
-                        
+        member x.TestLoadingOfMenuPlugins(vsqfiletoload:string) =        
+            let files = UnzipFiles(vsqfiletoload, "tmp")
+            let plugins = GetMenuPlugins(files, "tmp")
+            Directory.Delete(Path.Combine(basePath, "tmp"), true)
             plugins
-        else
-            List.Empty
 
-    member x.InstallMenuPlugin(vsqfiletoload:string, currentInstalledPlugins : MenuPlugin List) =
-        let plugins = x.TestLoadingOfMenuPlugins(vsqfiletoload)
-
-        if VerifyBinaryCompatibilityMenuPlugins(plugins, currentInstalledPlugins) then
-            if not(plugins.IsEmpty) then
-                UnzipFiles(vsqfiletoload, installFolder) |> ignore           
-                        
+        member x.TestLoadingOfAnalysisPlugins(vsqfiletoload:string) =        
+            let files = UnzipFiles(vsqfiletoload, "tmp")
+            let plugins = GetAnalysisPlugins(files, "tmp")
+            Directory.Delete(Path.Combine(basePath, "tmp"), true)  
             plugins
-        else
-            List.Empty
 
-    member x.LoadMenuPlugins() =
-        let pluginsFiles = Directory.GetFiles(installFolder)
-        let assemblies = GetAssembliesFromFolder(pluginsFiles)
-        let mutable plugins : MenuPlugin List = List.Empty
-        for file in pluginsFiles do
-            for plugin in GetMenuPlugins([file], "plugins") do
-                plugins <- plugins @ [plugin] 
+        member x.InstallAnalysisPlugin(vsqfiletoload:string, currentInstalledPlugins : AnalysisPluginHolder List) =
+            let plugins = (x :> ISQPluginManager).TestLoadingOfAnalysisPlugins(vsqfiletoload)
 
-        for plugin in plugins do
-            let typedata = plugin.Plugin.GetType()
-            let referenceAssemblies = typedata.Assembly.GetReferencedAssemblies()
-            for refassembly in referenceAssemblies do
-                let assemblydata = assemblies |> List.tryFind (fun elem -> elem.FullName.Equals(refassembly.FullName))
-                match assemblydata with
-                | Some c -> plugin.RefAssemblies <- plugin.RefAssemblies @ [c]
-                | None -> ()
-
-        plugins
-
-    member x.LoadAnalysisPlugins() =
-        let pluginsFiles = Directory.GetFiles(installFolder)
-        let assemblies = GetAssembliesFromFolder(pluginsFiles)
-        let mutable plugins : AnalysisPlugin List = List.Empty
-        for file in pluginsFiles do
-            for plugin in GetAnalysisPlugins([file], "plugins") do
-                plugins <- plugins @ [plugin] 
-
-        for plugin in plugins do
-            let typedata = plugin.Plugin.GetType()
-            let referenceAssemblies = typedata.Assembly.GetReferencedAssemblies()
-            for refassembly in referenceAssemblies do
-                let assemblydata = assemblies |> List.tryFind (fun elem -> elem.FullName.Equals(refassembly.FullName) && elem.Version.Equals(refassembly.Version))
-                match assemblydata with
-                | Some c -> plugin.RefAssemblies <- plugin.RefAssemblies @ [c]
-                | None -> ()
-
-        plugins
-
-    member x.DeleteMenuPlugin(plugin : MenuPlugin, pluginsList : MenuPlugin List) =
-        
-        let lookAtAssemblies(pluginele : MenuPlugin, assembly : AssemblyInfo) = 
-            let found = pluginele.RefAssemblies |> List.tryFind (fun c -> assembly.Version.Equals(c.Version))
-
-            if pluginele.Id.Equals(plugin.Id) then
-                false
+            if VerifyBinaryCompatibilityAnalysisPlugins(plugins, currentInstalledPlugins) then
+                if not(plugins.IsEmpty) then
+                    UnzipFiles(vsqfiletoload, installFolder) |> ignore
+                    for plugin in plugins do
+                        plugin.Assembly.Path <- Path.Combine(installFolder, Path.GetFileName(plugin.Assembly.Path))
+                        for reference in plugin.RefAssemblies do
+                            reference.Path <- Path.Combine(installFolder, Path.GetFileName(reference.Path))                      
+                plugins
             else
+                List.Empty
+
+        member x.InstallMenuPlugin(vsqfiletoload:string, currentInstalledPlugins : MenuPluginHolder List) =
+            let plugins = (x :> ISQPluginManager).TestLoadingOfMenuPlugins(vsqfiletoload)
+
+            if VerifyBinaryCompatibilityMenuPlugins(plugins, currentInstalledPlugins) then
+                if not(plugins.IsEmpty) then
+                    UnzipFiles(vsqfiletoload, installFolder) |> ignore
+                    for plugin in plugins do
+                        plugin.Assembly.Path <- Path.Combine(installFolder, Path.GetFileName(plugin.Assembly.Path))
+                        for reference in plugin.RefAssemblies do
+                            reference.Path <- Path.Combine(installFolder, Path.GetFileName(reference.Path))                              
+                        
+                plugins
+            else
+                List.Empty
+
+        member x.LoadMenuPlugins() =
+            let pluginsFiles = Directory.GetFiles(installFolder)
+            let assemblies = GetAssembliesFromFolder(pluginsFiles)
+            let mutable plugins : MenuPluginHolder List = List.Empty
+            for file in pluginsFiles do
+                for plugin in GetMenuPlugins([file], "plugins") do
+                    plugins <- plugins @ [plugin] 
+
+            for plugin in plugins do
+                let typedata = plugin.Plugin.GetType()
+                let referenceAssemblies = typedata.Assembly.GetReferencedAssemblies()
+                for refassembly in referenceAssemblies do
+                    let assemblydata = assemblies |> List.tryFind (fun elem -> elem.FullName.Equals(refassembly.FullName))
+                    match assemblydata with
+                    | Some c -> plugin.RefAssemblies <- plugin.RefAssemblies @ [c]
+                    | None -> ()
+
+            plugins
+
+        member x.LoadAnalysisPlugins() =
+            let pluginsFiles = Directory.GetFiles(installFolder)
+            let assemblies = GetAssembliesFromFolder(pluginsFiles)
+            let mutable plugins : AnalysisPluginHolder List = List.Empty
+            for file in pluginsFiles do
+                for plugin in GetAnalysisPlugins([file], "plugins") do
+                    plugins <- plugins @ [plugin] 
+
+            for plugin in plugins do
+                let typedata = plugin.Plugin.GetType()
+                let referenceAssemblies = typedata.Assembly.GetReferencedAssemblies()
+                for refassembly in referenceAssemblies do
+                    let assemblydata = assemblies |> List.tryFind (fun elem -> elem.FullName.Equals(refassembly.FullName) && elem.Version.Equals(refassembly.Version))
+                    match assemblydata with
+                    | Some c -> plugin.RefAssemblies <- plugin.RefAssemblies @ [c]
+                    | None -> ()
+
+            plugins
+
+        member x.DeleteMenuPlugin(plugin : MenuPluginHolder, pluginsList : MenuPluginHolder List) =
+        
+            let lookAtAssemblies(pluginele : MenuPluginHolder, assembly : AssemblyInfo) = 
+                let found = pluginele.RefAssemblies |> List.tryFind (fun c -> assembly.Version.Equals(c.Version))
+
+                if pluginele.Id.Equals(plugin.Id) then
+                    false
+                else
+                    match found with
+                    | Some c -> true
+                    | None -> false
+                
+            let isFoundinList(elem : AssemblyInfo) =
+                let  found = pluginsList |> List.tryFind (fun c -> lookAtAssemblies(c, elem))
                 match found with
                 | Some c -> true
                 | None -> false
-                
-        let isFoundinList(elem : AssemblyInfo) =
-            let  found = pluginsList |> List.tryFind (fun c -> lookAtAssemblies(c, elem))
-            match found with
-            | Some c -> true
-            | None -> false
 
-        for assembly in plugin.RefAssemblies do
-          if not(isFoundinList(assembly)) then
-            File.Delete(assembly.Path)
+            for assembly in plugin.RefAssemblies do
+              if not(isFoundinList(assembly)) then
+                File.Delete(assembly.Path)
 
-        File.Delete(plugin.Assembly.Path)
+            File.Delete(plugin.Assembly.Path)
 
-    member x.DeleteAnalysisPlugin(plugin : AnalysisPlugin, pluginsList : AnalysisPlugin List) =
+        member x.DeleteAnalysisPlugin(plugin : AnalysisPluginHolder, pluginsList : AnalysisPluginHolder List) =
         
-        let lookAtAssemblies(pluginele : AnalysisPlugin, assembly : AssemblyInfo) = 
-            let found = pluginele.RefAssemblies |> List.tryFind (fun c -> assembly.Version.Equals(c.Version))
+            let lookAtAssemblies(pluginele : AnalysisPluginHolder, assembly : AssemblyInfo) = 
+                let found = pluginele.RefAssemblies |> List.tryFind (fun c -> assembly.Version.Equals(c.Version))
 
-            if pluginele.Id.Equals(plugin.Id) then
-                false
-            else
+                if pluginele.Id.Equals(plugin.Id) then
+                    false
+                else
+                    match found with
+                    | Some c -> true
+                    | None -> false
+                
+            let isFoundinList(elem : AssemblyInfo) =
+                let  found = pluginsList |> List.tryFind (fun c -> lookAtAssemblies(c, elem))
                 match found with
                 | Some c -> true
                 | None -> false
-                
-        let isFoundinList(elem : AssemblyInfo) =
-            let  found = pluginsList |> List.tryFind (fun c -> lookAtAssemblies(c, elem))
-            match found with
-            | Some c -> true
-            | None -> false
 
-        for assembly in plugin.RefAssemblies do
-          if not(isFoundinList(assembly)) then
-            File.Delete(assembly.Path)
+            for assembly in plugin.RefAssemblies do
+              if not(isFoundinList(assembly)) then
+                File.Delete(assembly.Path)
 
-        File.Delete(plugin.Assembly.Path)
+            File.Delete(plugin.Assembly.Path)
 
     
                         

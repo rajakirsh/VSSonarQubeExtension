@@ -27,6 +27,7 @@ open Microsoft.Build.Utilities
 open SonarRestService
 open ExtensionHelpers
 open CommandExecutor
+open SQPluginManager
 
 type LanguageType =
    | SingleLang = 0
@@ -34,7 +35,7 @@ type LanguageType =
 
 [<ComVisible(false)>]
 [<HostProtection(SecurityAction.LinkDemand, Synchronization = true, ExternalThreading = true)>]
-type SonarLocalAnalyser(plugins : System.Collections.Generic.List<IAnalysisPlugin>, restService : ISonarRestService, vsinter : IConfigurationHelper) =
+type SonarLocalAnalyser(plugins : System.Collections.Generic.List<AnalysisPluginHolder>, restService : ISonarRestService, vsinter : IConfigurationHelper) =
     let completionEvent = new DelegateEvent<System.EventHandler>()
     let stdOutEvent = new DelegateEvent<System.EventHandler>()
     let jsonReports : System.Collections.Generic.List<String> = new System.Collections.Generic.List<String>()
@@ -48,7 +49,7 @@ type SonarLocalAnalyser(plugins : System.Collections.Generic.List<IAnalysisPlugi
         completionEvent.Trigger([|x; errorInExecution|])
 
     let GetAPluginInListThatSupportSingleLanguage(project : Resource, conf : ISonarConfiguration) =              
-        (List.ofSeq plugins) |> List.find (fun plugin -> plugin.IsSupported(conf, project)) 
+        (List.ofSeq plugins) |> List.find (fun plugin -> plugin.Plugin.IsSupported(conf, project)) 
 
     let GetPluginThatSupportsResource(itemInView : VsProjectItem) =      
         if itemInView = null then        
@@ -62,22 +63,22 @@ type SonarLocalAnalyser(plugins : System.Collections.Generic.List<IAnalysisPlugi
             else
                 plugin.IsSupported(item) && isEnabled.Equals("true", StringComparison.CurrentCultureIgnoreCase)
 
-        try
-            (List.ofSeq plugins) |> List.find (fun plugin -> IsSupported(plugin, itemInView)) 
-        with
-        | ex -> null
+        let elem = List.ofSeq plugins |> List.tryFind (fun plugin -> IsSupported(plugin.Plugin, itemInView)) 
+        match elem with
+        | Some value -> value
+        | None -> null
 
     let GetExtensionThatSupportsThisProject(conf : ISonarConfiguration, project : Resource) = 
         let plugin = GetAPluginInListThatSupportSingleLanguage(project, conf)
         if plugin <> null then
-            plugin.GetLocalAnalysisExtension(conf)
+            plugin.Plugin.GetLocalAnalysisExtension(conf)
         else
             null
 
     let GetExtensionThatSupportsThisFile(vsprojitem : VsProjectItem, conf:ISonarConfiguration) = 
         let plugin = GetPluginThatSupportsResource(vsprojitem)
         if plugin <> null then
-            plugin.GetLocalAnalysisExtension(conf)
+            plugin.Plugin.GetLocalAnalysisExtension(conf)
         else
             null
 
@@ -96,7 +97,7 @@ type SonarLocalAnalyser(plugins : System.Collections.Generic.List<IAnalysisPlugi
             else
                 if project.Lang = null then
                     let plugin = GetPluginThatSupportsResource(itemInView)
-                    project.Lang <- plugin.GetLanguageKey()
+                    project.Lang <- plugin.Plugin.GetLanguageKey()
 
                 let profile = profiles |> Seq.find (fun x -> x.Language = project.Lang)
                 if profile <> null then
@@ -268,7 +269,7 @@ type SonarLocalAnalyser(plugins : System.Collections.Generic.List<IAnalysisPlugi
                             project.Qualifier <- x.Project.Qualifier
                             project.Scope <- x.Project.Scope
 
-                            project.Lang <- plugin.GetLanguageKey()
+                            project.Lang <- plugin.Plugin.GetLanguageKey()
                             let issues = extension.ExecuteAnalysisOnFile(vsprojitem, GetQualityProfile(x.Conf, project, vsprojitem), project)
                             lock syncLock (
                                 fun () -> 
@@ -456,7 +457,7 @@ type SonarLocalAnalyser(plugins : System.Collections.Generic.List<IAnalysisPlugi
                 with
                 | ex -> ()                        
 
-            List.ofSeq plugins |> Seq.iter (fun m -> GetIssuesFromPlugins(m))
+            List.ofSeq plugins |> Seq.iter (fun m -> GetIssuesFromPlugins(m.Plugin))
 
             localissues
 
@@ -559,4 +560,4 @@ type SonarLocalAnalyser(plugins : System.Collections.Generic.List<IAnalysisPlugi
 
             let plugin = GetPluginThatSupportsResource(itemInView)
 
-            plugin.GetResourceKey(itemInView, associatedProject.Key, safeIsOn)
+            plugin.Plugin.GetResourceKey(itemInView, associatedProject.Key, safeIsOn)
