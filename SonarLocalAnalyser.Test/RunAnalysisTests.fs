@@ -22,6 +22,7 @@ open VSSonarPlugins
 
 open SonarRestService
 open ExtensionTypes
+open SQPluginManager
 
 type RunAnalysisTests() =
 
@@ -63,8 +64,10 @@ type RunAnalysisTests() =
                 .Setup(fun x -> <@ x.GetPluginDescription(mockAVsinterface) @>).Returns(pluginDescription)
                 .Create()
 
-        let listofPlugins = new System.Collections.Generic.List<IAnalysisPlugin>()
-        listofPlugins.Add(mockAPlugin)
+        let listofPlugins = new System.Collections.Generic.List<AnalysisPluginHolder>()
+        let holder = AnalysisPluginHolder("id")
+        holder.Plugin <- mockAPlugin
+        listofPlugins.Add(holder)
         let analyser = new SonarLocalAnalyser(listofPlugins, Mock<ISonarRestService>().Create(), mockAVsinterface)
         
         

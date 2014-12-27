@@ -126,7 +126,7 @@
     <Reference Include="Microsoft.CodeAnalysis.Workspaces">
       <HintPath>..\packages\Microsoft.CodeAnalysis.Workspaces.Common.1.0.0-beta1-20141031-01\lib\portable-net45+win8\Microsoft.CodeAnalysis.Workspaces.dll</HintPath>
       <Private>True</Private>
-    </Reference>	
+    </Reference>
     <Reference Include="System.Collections.Immutable">
       <HintPath>..\packages\System.Collections.Immutable.1.1.32-beta\lib\portable-net45+win8+wp8+wpa81\System.Collections.Immutable.dll</HintPath>
       <Private>True</Private>
@@ -273,6 +273,10 @@
     <ProjectReference Include="..\SonarRestService\SonarRestService.fsproj">
       <Project>{64728a55-1166-4ec6-b066-22c4e01fc1c7}</Project>
       <Name>SonarRestService</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\SQPluginManager\SQPluginManager.fsproj">
+      <Project>{d98f566b-3079-4663-91e9-724d3d714225}</Project>
+      <Name>SQPluginManager</Name>
     </ProjectReference>
     <ProjectReference Include="..\VSSonarExtensionUi\VSSonarExtensionUi.csproj">
       <Project>{bc583a5d-931b-4ed9-ac2c-5667a37b3043}</Project>

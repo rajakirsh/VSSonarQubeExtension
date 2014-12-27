@@ -13,7 +13,7 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ExpressionBlendVersion>12.0.50716.0</ExpressionBlendVersion>
-	<TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
+    <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
     <TargetFrameworkProfile />
     <NuGetPackageImportStamp>a397900b</NuGetPackageImportStamp>
@@ -280,6 +280,10 @@
       <Project>{75a39a9b-06b2-4249-9d3c-c2319951bc53}</Project>
       <Name>ExtensionTypes</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SQPluginManager\SQPluginManager.fsproj">
+      <Project>{d98f566b-3079-4663-91e9-724d3d714225}</Project>
+      <Name>SQPluginManager</Name>
+    </ProjectReference>
     <ProjectReference Include="..\VSSonarPlugins\VSSonarPlugins.csproj">
       <Project>{3311C918-B662-436D-8BC8-F38B447B1414}</Project>
       <Name>VSSonarPlugins</Name>
@@ -288,10 +292,10 @@
       <Project>{496B669E-8CB4-41AC-B928-E84E3C820807}</Project>
       <Name>VSSonarPlugins</Name>
     </ProjectReference>
-	<ProjectReference Include="..\SonarLocalAnalyser\SonarLocalAnalyser.fsproj">
+    <ProjectReference Include="..\SonarLocalAnalyser\SonarLocalAnalyser.fsproj">
       <Project>{A7D09C0C-EFC5-4662-83B6-DAE14E68C94C}</Project>
       <Name>VSSonarPlugins</Name>
-    </ProjectReference>	
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="FodyWeavers.xml" />

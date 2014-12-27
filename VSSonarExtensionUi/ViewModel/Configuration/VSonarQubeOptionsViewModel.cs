@@ -37,6 +37,8 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
 
     using VSSonarPlugins;
 
+    using SQPluginManager;
+
     /// <summary>
     ///     The plugins options model.
     /// </summary>
@@ -53,12 +55,7 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// <summary>
         ///     The plugincontroller.
         /// </summary>
-        private readonly PluginController plugincontroller;
-
-        /// <summary>
-        ///     The plugins.
-        /// </summary>
-        private readonly List<IAnalysisPlugin> plugins;
+        private readonly ISQPluginManager plugincontroller;
 
         #endregion
 
@@ -105,11 +102,10 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// <param name="vsHelper">
         /// The vs helper.
         /// </param>
-        public VSonarQubeOptionsViewModel(PluginController plugincontroller, SonarQubeViewModel model, IVsEnvironmentHelper vsHelper, IConfigurationHelper configurationHelper)
+        public VSonarQubeOptionsViewModel(ISQPluginManager plugincontroller, SonarQubeViewModel model, IVsEnvironmentHelper vsHelper, IConfigurationHelper configurationHelper)
         {
             this.model = model;
             this.plugincontroller = plugincontroller;
-            this.plugins = plugincontroller.GetPlugins();
             this.Vsenvironmenthelper = vsHelper;
             this.ConfigurationHelper = configurationHelper;
 
@@ -267,27 +263,27 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         public void ResetUserData()
         {
             bool fileIsMissing = File.Exists(this.ConfigurationHelper.UserAppDataConfigurationFile());
-            if (this.plugins == null)
+            if (this.PluginManager.AnalysisPlugins == null)
             {
                 return;
             }
 
-            foreach (IAnalysisPlugin plugin in this.plugins)
+            foreach (var plugin in this.PluginManager.AnalysisPlugins)
             {
-                if (plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig) == null)
+                if (plugin.Plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig) == null)
                 {
                     continue;
                 }
 
                 if (!fileIsMissing
                     || this.ConfigurationHelper.ReadAllAvailableOptionsInSettings(
-                        plugin.GetKey(this.GeneralConfigurationViewModel.UserConnectionConfig)).Count == 0)
+                        plugin.Plugin.GetKey(this.GeneralConfigurationViewModel.UserConnectionConfig)).Count == 0)
                 {
-                    plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig).ResetDefaults();
+                    plugin.Plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig).ResetDefaults();
 
-                    string pluginKey = plugin.GetKey(this.GeneralConfigurationViewModel.UserConnectionConfig);
+                    string pluginKey = plugin.Plugin.GetKey(this.GeneralConfigurationViewModel.UserConnectionConfig);
                     Dictionary<string, string> optionsToSave =
-                        plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig).GetOptions();
+                        plugin.Plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig).GetOptions();
                     this.ConfigurationHelper.WriteAllOptionsForPluginOptionInApplicationData(pluginKey, null, optionsToSave);
                 }
             }
@@ -419,7 +415,7 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
                 this.plugincontroller, 
                 this.GeneralConfigurationViewModel.UserConnectionConfig, 
                 this.Vsenvironmenthelper, this.ConfigurationHelper, 
-                this);
+                this, this.model);
             this.LicenseManager = new LicenseViewerViewModel();
 
             this.AvailableOptions.Add(this.GeneralConfigurationViewModel);
@@ -526,10 +522,10 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
                 this.PluginManager.CanModifyPluginProps = true;
             }
             
-            foreach (IAnalysisPlugin plugin in this.plugins)
+            foreach (var plugin in this.PluginManager.AnalysisPlugins)
             {
-                IPluginsOptions pluginOptionsController = plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig);
-                string pluginKey = plugin.GetKey(this.GeneralConfigurationViewModel.UserConnectionConfig);
+                IPluginsOptions pluginOptionsController = plugin.Plugin.GetPluginControlOptions(this.GeneralConfigurationViewModel.UserConnectionConfig);
+                string pluginKey = plugin.Plugin.GetKey(this.GeneralConfigurationViewModel.UserConnectionConfig);
 
                 if (pluginOptionsController == null)
                 {
@@ -548,7 +544,7 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
                 {
                     Dictionary<string, string> optionsInDsk = this.ConfigurationHelper.ReadAllAvailableOptionsInSettings(pluginKey);
                     this.OptionsInView = pluginOptionsController.GetUserControlOptions(this.Project);
-                    this.AnalysisPluginInView = plugin;
+                    this.AnalysisPluginInView = plugin.Plugin;
                     pluginOptionsController.SetOptions(optionsInDsk);
                 }
                 catch (Exception ex)

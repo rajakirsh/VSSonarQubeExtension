@@ -38,6 +38,7 @@ namespace VSSonarExtensionUi.ViewModel.Analysis
     using VSSonarExtensionUi.ViewModel.Helpers;
 
     using VSSonarPlugins;
+    using SQPluginManager;
 
     using Application = System.Windows.Application;
 
@@ -85,6 +86,8 @@ namespace VSSonarExtensionUi.ViewModel.Analysis
         /// </summary>
         private readonly SonarQubeViewModel sonarQubeViewModel;
 
+        private readonly List<AnalysisPluginHolder> plugins;
+
         /// <summary>
         ///     The show flyouts.
         /// </summary>
@@ -111,7 +114,7 @@ namespace VSSonarExtensionUi.ViewModel.Analysis
         /// </param>
         public LocalViewModel(
             SonarQubeViewModel sonarQubeViewModel, 
-            List<IAnalysisPlugin> plugins, 
+            List<AnalysisPluginHolder> pluginsIn, 
             ISonarRestService service, 
             IVsEnvironmentHelper helper,
             IConfigurationHelper configurationHelper)
@@ -124,11 +127,12 @@ namespace VSSonarExtensionUi.ViewModel.Analysis
             this.IssuesGridView = new IssueGridViewModel(sonarQubeViewModel, false, "LocalView", false);
             this.OuputLogLines = new PaginatedObservableCollection<string>(300);
             this.AllLog = new List<string>();
+            this.plugins = pluginsIn;
 
             this.InitCommanding();
             this.InitFileAnalysis();
 
-            this.LocalAnalyserModule = new SonarLocalAnalyser(plugins, this.RestService, this.ConfigurationHelper);
+            this.LocalAnalyserModule = new SonarLocalAnalyser(this.plugins, this.RestService, this.ConfigurationHelper);
             this.LocalAnalyserModule.StdOutEvent += this.UpdateOutputMessagesFromPlugin;
             this.LocalAnalyserModule.LocalAnalysisCompleted += this.UpdateLocalIssues;
 
@@ -147,7 +151,7 @@ namespace VSSonarExtensionUi.ViewModel.Analysis
         ///     The analysis mode has change.
         /// </summary>
         public event ChangedEventHandler IssuesReadyForCollecting;
-
+        
         #endregion
 
         #region Public Properties

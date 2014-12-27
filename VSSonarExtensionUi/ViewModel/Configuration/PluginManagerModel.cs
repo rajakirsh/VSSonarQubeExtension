@@ -17,6 +17,7 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
     using System.Windows.Forms;
     using System.Windows.Input;
     using System.Windows.Media;
+    using System.Linq;
 
     using ExtensionTypes;
 
@@ -30,9 +31,12 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
     using VSSonarExtensionUi.ViewModel.Helpers;
 
     using VSSonarPlugins;
+    using SQPluginManager;
 
     using Application = System.Windows.Application;
     using UserControl = System.Windows.Controls.UserControl;
+
+    using Microsoft.FSharp.Collections;
 
     /// <summary>
     ///     The dummy options controller.
@@ -45,7 +49,7 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// <summary>
         ///     The controller.
         /// </summary>
-        private readonly IPluginController controller;
+        private readonly ISQPluginManager controller;
 
         /// <summary>
         ///     The plugin list.
@@ -57,13 +61,15 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// </summary>
         private readonly VSonarQubeOptionsViewModel viewModel;
 
+        private readonly SonarQubeViewModel sonarQubeViewModel;
+
         /// <summary>
         ///     The visual studio helper.
         /// </summary>
         private IVsEnvironmentHelper visualStudioHelper;
 
-        private IConfigurationHelper configurationHelper;
-
+        private IConfigurationHelper configurationHelper;       
+       
         #endregion
 
         #region Constructors and Destructors
@@ -97,14 +103,16 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// The viewModel.
         /// </param>
         public PluginManagerModel(
-            IPluginController controller, 
+            ISQPluginManager controller, 
             ISonarConfiguration conf, 
             IVsEnvironmentHelper visualStudioHelper, 
             IConfigurationHelper configurationHelper,
-            VSonarQubeOptionsViewModel viewModel)
+            VSonarQubeOptionsViewModel viewModel,
+            SonarQubeViewModel sonarQubeViewModel)
         {
             this.visualStudioHelper = visualStudioHelper;
             this.configurationHelper = configurationHelper;
+            this.sonarQubeViewModel = sonarQubeViewModel;
             this.viewModel = viewModel;
             this.Header = "Plugin Manager";
             this.Conf = conf;
@@ -117,6 +125,9 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         #endregion
 
         #region Public Properties
+
+        public List<AnalysisPluginHolder> AnalysisPlugins { get; private set; }
+        public List<MenuPluginHolder> MenuPlugins { get; private set; }
 
         /// <summary>
         ///     Gets the assembly directory.
@@ -131,11 +142,6 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
                 return Path.GetDirectoryName(path);
             }
         }
-
-        /// <summary>
-        ///     Gets the analysis plugins.
-        /// </summary>
-        public List<IAnalysisPlugin> AnalysisPlugins { get; private set; }
 
         /// <summary>
         ///     Gets or sets the back ground color.
@@ -176,11 +182,6 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         ///     Gets or sets the install new plugin.
         /// </summary>
         public RelayCommand InstallNewPlugin { get; set; }
-
-        /// <summary>
-        ///     Gets the menu plugins.
-        /// </summary>
-        public List<IMenuCommandPlugin> MenuPlugins { get; private set; }
 
         /// <summary>
         ///     Gets or sets the options in view.
@@ -234,19 +235,19 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         {
             if (this.AnalysisPlugins != null)
             {
-                foreach (IAnalysisPlugin plugin in this.AnalysisPlugins)
+                foreach (var plugin in this.AnalysisPlugins)
                 {
                     this.configurationHelper.WriteOptionInApplicationData(
                         GlobalIds.PluginEnabledControlId,
-                        plugin.GetPluginDescription(this.configurationHelper).Name,
-                        plugin.GetPluginDescription(this.configurationHelper).Enabled.ToString());
+                        plugin.Plugin.GetPluginDescription(this.configurationHelper).Name,
+                        plugin.Plugin.GetPluginDescription(this.configurationHelper).Enabled.ToString());
 
                     if (this.viewModel.Project != null)
                     {
                         try
                         {
-                            Dictionary<string, string> options = plugin.GetPluginControlOptions(this.Conf).GetOptions();
-                            string key = plugin.GetKey(this.Conf);
+                            Dictionary<string, string> options = plugin.Plugin.GetPluginControlOptions(this.Conf).GetOptions();
+                            string key = plugin.Plugin.GetKey(this.Conf);
                             this.configurationHelper.WriteAllOptionsForPluginOptionInApplicationData(key, this.viewModel.Project, options);
                         }
                         catch (Exception ex)
@@ -328,23 +329,48 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
                 }
                 else
                 {
-                    PluginDescription plugin = this.controller.IstallNewPlugin(filedialog.FileName, this.Conf);
-
-                    if (plugin != null)
+                    try
                     {
-                        if (!this.UpdatePluginInListOfPlugins(plugin, "Plugin Will Be Updated in Next Restart"))
+                        var analysisPlugins = this.controller.InstallAnalysisPlugin(filedialog.FileName, ListModule.OfSeq(this.AnalysisPlugins));
+                        var menuPlugins = this.controller.InstallMenuPlugin(filedialog.FileName, ListModule.OfSeq(this.MenuPlugins));
+
+                        foreach (var plugin in menuPlugins)
                         {
-                            this.PluginList.Add(plugin);
+                            var description = plugin.Plugin.GetPluginDescription(this.configurationHelper);
+                            if (this.PluginList.SingleOrDefault(c => c.Name.Equals(description.Name)) == null)
+                            {
+                                this.PluginList.Add(description);
+                                this.MenuPlugins.Add(plugin);
+                                this.sonarQubeViewModel.AddANewMenu(plugin);
+                            }                            
                         }
 
-                        this.ChangesAreRequired = true;
+                        foreach (var plugin in analysisPlugins)
+                        {
+                            var description = plugin.Plugin.GetPluginDescription(this.configurationHelper);
+                            if (this.PluginList.SingleOrDefault(c => c.Name.Equals(description.Name)) == null)
+                            {
+                                this.PluginList.Add(description);
+                                this.AnalysisPlugins.Add(plugin);
+                            }   
+                        }                        
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        UserExceptionMessageBox.ShowException(
-                            "Cannot Install Plugin", 
-                            new Exception("Error Loading Plugin"), 
-                            this.controller.GetErrorData());
+                        if (this.controller.InstallErrors().Length > 0)
+                        {
+                            UserExceptionMessageBox.ShowException(
+                                "Cannot Install Plugin",
+                                new Exception("Error Loading Plugin"),
+                                SeqModule.OfList(this.controller.InstallErrors()).Aggregate((current, next) => current + "\r\n" + next));
+                        }
+                        else
+                        {
+                            UserExceptionMessageBox.ShowException(
+                                "Cannot Install Plugin",
+                                ex);
+                        }
+
                     }
                 }
             }
@@ -355,10 +381,22 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// </summary>
         public void OnRemovePlugin()
         {
-            if (this.controller.RemovePlugin(this.Conf, this.SelectedPlugin))
+            var plugin = this.AnalysisPlugins.SingleOrDefault(s => s.Plugin.GetPluginDescription(this.configurationHelper).Name.Equals(this.SelectedPlugin.Name));
+            if(plugin != null)
             {
-                this.UpdatePluginInListOfPlugins(this.SelectedPlugin, "Plugin Will Be Removed In Next Restart");
-                this.ChangesAreRequired = true;
+                this.controller.DeleteAnalysisPlugin(plugin, ListModule.OfSeq(this.AnalysisPlugins));
+                this.AnalysisPlugins.Remove(plugin);
+                this.PluginList.Remove(this.SelectedPlugin);
+                return;
+            }
+
+            var menuPlugin = this.MenuPlugins.SingleOrDefault(s => s.Plugin.GetPluginDescription(this.configurationHelper).Name.Equals(this.SelectedPlugin.Name));
+            if (menuPlugin != null)
+            {
+                this.controller.DeleteMenuPlugin(menuPlugin, ListModule.OfSeq(this.MenuPlugins));
+                this.MenuPlugins.Remove(menuPlugin);
+                this.PluginList.Remove(this.SelectedPlugin);
+                this.sonarQubeViewModel.RemoveMenuPlugin(menuPlugin);
             }
         }
 
@@ -367,14 +405,22 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// </summary>
         public void OnRestartVs()
         {
-            if (this.visualStudioHelper.AreWeRunningInVisualStudio())
+            try
             {
-                this.visualStudioHelper.RestartVisualStudio();
+                if (this.visualStudioHelper.AreWeRunningInVisualStudio())
+                {
+                    this.visualStudioHelper.RestartVisualStudio();
+                }
+                else
+                {
+                    Application.Current.Shutdown();
+                }
             }
-            else
+            catch (Exception ex)
             {
                 Application.Current.Shutdown();
             }
+
         }
 
         /// <summary>
@@ -398,6 +444,11 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         {
             this.BackGroundColor = background;
             this.ForeGroundColor = foreground;
+
+            foreach (var menuPlugin in this.MenuPlugins)
+            {
+                menuPlugin.Plugin.UpdateTheme(background, foreground);
+            }
         }
 
         /// <summary>
@@ -447,17 +498,17 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
         /// </summary>
         private void InitPluginList()
         {
-            this.AnalysisPlugins = this.controller.GetPlugins();
-            this.MenuPlugins = this.controller.GetMenuItemPlugins();
+            this.AnalysisPlugins = SeqModule.OfList(this.controller.LoadAnalysisPlugins()).ToList();
+            this.MenuPlugins = SeqModule.OfList(this.controller.LoadMenuPlugins()).ToList();
 
-            foreach (IAnalysisPlugin plugin in this.AnalysisPlugins)
+            foreach (var plugin in this.AnalysisPlugins)
             {
-                this.PluginList.Add(plugin.GetPluginDescription(this.configurationHelper));
+                this.PluginList.Add(plugin.Plugin.GetPluginDescription(this.configurationHelper));
             }
 
-            foreach (IMenuCommandPlugin plugin in this.MenuPlugins)
+            foreach (var plugin in this.MenuPlugins)
             {
-                this.PluginList.Add(plugin.GetPluginDescription(this.configurationHelper));
+                this.PluginList.Add(plugin.Plugin.GetPluginDescription(this.configurationHelper));
             }
         }
 
@@ -470,13 +521,13 @@ namespace VSSonarExtensionUi.ViewModel.Configuration
             {
                 this.PluginIsSelected = true;
 
-                foreach (IAnalysisPlugin plugin in this.AnalysisPlugins)
+                foreach (var plugin in this.AnalysisPlugins)
                 {
-                    if (plugin.GetPluginDescription(this.configurationHelper).Name.Equals(this.SelectedPlugin.Name))
+                    if (plugin.Plugin.GetPluginDescription(this.configurationHelper).Name.Equals(this.SelectedPlugin.Name))
                     {
                         try
                         {
-                            this.OptionsInView = plugin.GetPluginControlOptions(this.Conf).GetUserControlOptions(this.viewModel.Project);
+                            this.OptionsInView = plugin.Plugin.GetPluginControlOptions(this.Conf).GetUserControlOptions(this.viewModel.Project);
                         }
                         catch (Exception ex)
                         {
