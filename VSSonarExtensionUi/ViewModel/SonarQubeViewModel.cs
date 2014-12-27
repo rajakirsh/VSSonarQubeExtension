@@ -45,6 +45,7 @@ namespace VSSonarExtensionUi.ViewModel
     using VSSonarPlugins;
 
     using SQPluginManager;
+    using System.Reflection;
 
     /// <summary>
     ///     The changed event handler.
@@ -68,7 +69,7 @@ namespace VSSonarExtensionUi.ViewModel
         /// <summary>
         ///     The analysisPlugin control.
         /// </summary>
-        public readonly ISQPluginManager PluginControl = new SQPluginManager(Environment.CurrentDirectory);
+        public readonly ISQPluginManager PluginControl = new SQPluginManager(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetName().CodeBase).Replace("file:\\", string.Empty));
 
         /// <summary>
         ///     The menu item plugins.
