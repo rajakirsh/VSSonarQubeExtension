@@ -345,19 +345,27 @@ namespace VSSonarQubeExtension
         /// </param>
         private void LoadPluginIntoNewToolWindow(object sender, EventArgs eventArgs)
         {
-            var plugin = SonarQubeViewModelFactory.SQViewModel.InUsePlugin;
-            this.ShowToolWindow(
-                plugin.Value.GetUserControl(
-                SonarQubeViewModelFactory.SQViewModel.VSonarQubeOptionsViewData.GeneralConfigurationViewModel.UserConnectionConfig,
-                SonarQubeViewModelFactory.SQViewModel.AssociatedProject,
-                SonarQubeViewModelFactory.SQViewModel.VsHelper),
-                plugin.Key,
-                plugin.Value.GetHeader());
+            try
+            {
+                var plugin = SonarQubeViewModelFactory.SQViewModel.InUsePlugin;
+                this.ShowToolWindow(
+                    plugin.Value.GetUserControl(
+                    SonarQubeViewModelFactory.SQViewModel.VSonarQubeOptionsViewData.GeneralConfigurationViewModel.UserConnectionConfig,
+                    SonarQubeViewModelFactory.SQViewModel.AssociatedProject,
+                    SonarQubeViewModelFactory.SQViewModel.VsHelper),
+                    plugin.Key,
+                    plugin.Value.GetHeader());
 
-            DColor defaultBackground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey);
-            DColor defaultForeground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowTextColorKey);
+                DColor defaultBackground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey);
+                DColor defaultForeground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowTextColorKey);
 
-            plugin.Value.UpdateTheme(ToMediaColor(defaultBackground), ToMediaColor(defaultForeground));
+                plugin.Value.UpdateTheme(ToMediaColor(defaultBackground), ToMediaColor(defaultForeground));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);            
+            }
+
         }
 
         /// <summary>

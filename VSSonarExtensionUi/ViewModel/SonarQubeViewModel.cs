@@ -66,6 +66,8 @@ namespace VSSonarExtensionUi.ViewModel
     {
         #region Fields
 
+        public readonly PluginController AssemblyLoader = new PluginController();
+
         /// <summary>
         ///     The analysisPlugin control.
         /// </summary>

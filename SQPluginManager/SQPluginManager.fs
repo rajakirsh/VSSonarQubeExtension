@@ -16,6 +16,7 @@ type SQPluginManager(basePath : string) =
         if not(Directory.Exists(pathdata)) then
             Directory.CreateDirectory(pathdata) |> ignore
 
+        Assembly.LoadFrom(Path.Combine(basePath, "System.Windows.dll")) |> ignore
         pathdata
 
     let mutable loadingErrors = List.Empty
@@ -89,21 +90,22 @@ type SQPluginManager(basePath : string) =
         let mutable listofAssemblyes : AssemblyInfo List = List.Empty
 
         for file in files do 
-            let data : System.Object array = Array.zeroCreate 1
-            let absPath = Path.Combine(basePath, file)
-            data.[0] <- (absPath :> System.Object)
+            if file.EndsWith(".dll") then
+                let data : System.Object array = Array.zeroCreate 1
+                let absPath = Path.Combine(basePath, file)
+                data.[0] <- (absPath :> System.Object)
 
-            let assemblyData = AssemblyInfo(AssemblyName.GetAssemblyName(absPath).FullName)
-            assemblyData.Path <- absPath
-            assemblyData.Version <- AssemblyName.GetAssemblyName(absPath).Version.ToString()
-            listofAssemblyes <- listofAssemblyes @ [assemblyData]
+                let assemblyData = AssemblyInfo(AssemblyName.GetAssemblyName(absPath).FullName)
+                assemblyData.Path <- absPath
+                assemblyData.Version <- AssemblyName.GetAssemblyName(absPath).Version.ToString()
+                listofAssemblyes <- listofAssemblyes @ [assemblyData]
 
-            let plugins = (getdiag.Invoke(asmLoaderProxy, data) :?> IMenuCommandPlugin List)
-            for plugin in plugins do
-                let newPlug = MenuPluginHolder(plugin.GetHeader())    
-                newPlug.Plugin <- plugin
-                newPlug.Assembly <- assemblyData
-                pluginsOut <- pluginsOut @ [newPlug]
+                let plugins = (getdiag.Invoke(asmLoaderProxy, data) :?> IMenuCommandPlugin List)
+                for plugin in plugins do
+                    let newPlug = MenuPluginHolder(plugin.GetHeader())    
+                    newPlug.Plugin <- plugin
+                    newPlug.Assembly <- assemblyData
+                    pluginsOut <- pluginsOut @ [newPlug]
 
         for plugin in pluginsOut do
             for refass in listofAssemblyes do
@@ -164,22 +166,23 @@ type SQPluginManager(basePath : string) =
 
         let mutable listofAssemblyes : AssemblyInfo List = List.Empty
 
-        for file in files do 
-            let data : System.Object array = Array.zeroCreate 1
-            let absPath = Path.Combine(basePath, file)
-            data.[0] <- (absPath :> System.Object)
+        for file in files do
+            if file.EndsWith(".dll") then
+                let data : System.Object array = Array.zeroCreate 1
+                let absPath = Path.Combine(basePath, file)
+                data.[0] <- (absPath :> System.Object)
 
-            let assemblyData = AssemblyInfo(AssemblyName.GetAssemblyName(absPath).FullName)
-            assemblyData.Path <- absPath
-            assemblyData.Version <- AssemblyName.GetAssemblyName(absPath).Version.ToString()
-            listofAssemblyes <- listofAssemblyes @ [assemblyData]
+                let assemblyData = AssemblyInfo(AssemblyName.GetAssemblyName(absPath).FullName)
+                assemblyData.Path <- absPath
+                assemblyData.Version <- AssemblyName.GetAssemblyName(absPath).Version.ToString()
+                listofAssemblyes <- listofAssemblyes @ [assemblyData]
 
-            let plugins = (getdiag.Invoke(asmLoaderProxy, data) :?> IAnalysisPlugin List)
-            for plugin in plugins do
-                let newPlug = AnalysisPluginHolder(plugin.GetKey(null))    
-                newPlug.Plugin <- plugin
-                newPlug.Assembly <- assemblyData
-                pluginsOut <- pluginsOut @ [newPlug]
+                let plugins = (getdiag.Invoke(asmLoaderProxy, data) :?> IAnalysisPlugin List)
+                for plugin in plugins do
+                    let newPlug = AnalysisPluginHolder(plugin.GetKey(null))    
+                    newPlug.Plugin <- plugin
+                    newPlug.Assembly <- assemblyData
+                    pluginsOut <- pluginsOut @ [newPlug]
 
         for plugin in pluginsOut do
             for refass in listofAssemblyes do
@@ -193,11 +196,12 @@ type SQPluginManager(basePath : string) =
         let mutable assembliesininstall : AssemblyInfo List = List.Empty
         
         for file in files do
-            let assemblydata = AssemblyName.GetAssemblyName(file)
-            let assembly = AssemblyInfo(assemblydata.FullName)
-            assembly.Path <- file
-            assembly.Version <- assemblydata.Version.ToString()
-            assembliesininstall <- assembliesininstall @ [assembly]
+            if file.EndsWith(".dll") then
+                let assemblydata = AssemblyName.GetAssemblyName(file)
+                let assembly = AssemblyInfo(assemblydata.FullName)
+                assembly.Path <- file
+                assembly.Version <- assemblydata.Version.ToString()
+                assembliesininstall <- assembliesininstall @ [assembly]
 
         assembliesininstall
 
@@ -206,13 +210,13 @@ type SQPluginManager(basePath : string) =
         member x.InstallErrors() = installErrors
 
         member x.TestLoadingOfMenuPlugins(vsqfiletoload:string) =        
-            let files = UnzipFiles(vsqfiletoload, "tmp")
+            let files = UnzipFiles(vsqfiletoload, Path.Combine(basePath, "tmp"))
             let plugins = GetMenuPlugins(files, "tmp")
             Directory.Delete(Path.Combine(basePath, "tmp"), true)
             plugins
 
         member x.TestLoadingOfAnalysisPlugins(vsqfiletoload:string) =        
-            let files = UnzipFiles(vsqfiletoload, "tmp")
+            let files = UnzipFiles(vsqfiletoload, Path.Combine(basePath, "tmp"))
             let plugins = GetAnalysisPlugins(files, "tmp")
             Directory.Delete(Path.Combine(basePath, "tmp"), true)  
             plugins
