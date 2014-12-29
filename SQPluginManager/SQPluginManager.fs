@@ -17,6 +17,45 @@ type SQPluginManager(basePath : string) =
             Directory.CreateDirectory(pathdata) |> ignore
 
         Assembly.LoadFrom(Path.Combine(basePath, "System.Windows.dll")) |> ignore
+
+        AppDomain.CurrentDomain.add_AssemblyResolve(fun _ args ->
+
+            let assemblyToGet = args.Name.Replace(".resources,", ",")
+
+            let GetAssemblyFromCurrentDomain() =
+                let mutable assembly : Assembly = null          
+                try
+                    for assemb in System.AppDomain.CurrentDomain.GetAssemblies() do
+                        let fullName = assemb.FullName
+                        if fullName.Equals(assemblyToGet) then
+                            assembly <- assemb
+                with
+                | ex -> ()
+                assembly
+
+            let GetAssemblyFromInstallFolder() =
+                let mutable assembly : Assembly = null          
+                try
+                    let files = Directory.GetFiles(basePath)
+                    for file in files do
+                        if file.ToLower().EndsWith(".dll") || file.ToLower().EndsWith(".exe") then
+                            let fullName = AssemblyName.GetAssemblyName(file).FullName
+                            if fullName.Equals(assemblyToGet) then
+                                assembly <- Assembly.LoadFrom(file)
+                with
+                | ex -> ()
+                assembly
+
+            let ref = GetAssemblyFromCurrentDomain()
+            if ref <> null then
+                ref
+            else
+                let ref =  GetAssemblyFromInstallFolder()
+                if ref <> null then
+                    ref
+                else
+                    null                
+        )
         pathdata
 
     let mutable loadingErrors = List.Empty
@@ -60,27 +99,12 @@ type SQPluginManager(basePath : string) =
 
     let GetMenuPlugins(files : string List, privateBinPath : string) =        
         loadingErrors <- []
-
-        let domaininfo = new AppDomainSetup(ApplicationBase = basePath, PrivateBinPath = privateBinPath)
-        let adevidence = AppDomain.CurrentDomain.Evidence
-        let domain = AppDomain.CreateDomain("PluginDomain", adevidence, domaininfo)
-
-        AppDomain.CurrentDomain.add_AssemblyResolve(fun _ args ->
-            let name = System.Reflection.AssemblyName(args.Name)
-            let existingAssembly = 
-                System.AppDomain.CurrentDomain.GetAssemblies()
-                |> Seq.tryFind(fun a -> System.Reflection.AssemblyName.ReferenceMatchesDefinition(name, a.GetName()))
-            match existingAssembly with
-            | Some a -> a
-            | None -> loadingErrors <- loadingErrors @ [args.Name]
-                      null 
-        )
-        
+       
         let typeDom = typeof<PluginProxyDomain>
-        domain.CreateInstanceAndUnwrap(typeDom.Assembly.FullName, typeDom.FullName) |> ignore
+        AppDomain.CurrentDomain.CreateInstanceAndUnwrap(typeDom.Assembly.FullName, typeDom.FullName) |> ignore
         let data = Assembly.GetExecutingAssembly()
         let executingAssembly = data.FullName
-        let asmLoaderProxy = domain.CreateInstanceAndUnwrap(executingAssembly, typeof<PluginProxyDomain>.FullName)
+        let asmLoaderProxy = AppDomain.CurrentDomain.CreateInstanceAndUnwrap(executingAssembly, typeof<PluginProxyDomain>.FullName)
         
         let typesd = asmLoaderProxy.GetType()
         let getdiag = typesd.GetMethod("GetMenuPlugins")
@@ -112,7 +136,6 @@ type SQPluginManager(basePath : string) =
                 if not(refass.FullName.Equals(plugin.Assembly.FullName)) then
                     plugin.RefAssemblies <- plugin.RefAssemblies @ [refass]
              
-        AppDomain.Unload(domain)
         pluginsOut
 
     let VerifyBinaryCompatibilityMenuPlugins(inPlugins : MenuPluginHolder List, currPlugins : MenuPluginHolder  List) =        
@@ -137,27 +160,12 @@ type SQPluginManager(basePath : string) =
 
     let GetAnalysisPlugins(files:string List, privateBinPath : string) =        
         loadingErrors <- []
-
-        let domaininfo = new AppDomainSetup(ApplicationBase = basePath, PrivateBinPath = privateBinPath)
-        let adevidence = AppDomain.CurrentDomain.Evidence
-        let domain = AppDomain.CreateDomain("PluginDomain", adevidence, domaininfo)
-
-        AppDomain.CurrentDomain.add_AssemblyResolve(fun _ args ->
-            let name = System.Reflection.AssemblyName(args.Name)
-            let existingAssembly = 
-                System.AppDomain.CurrentDomain.GetAssemblies()
-                |> Seq.tryFind(fun a -> System.Reflection.AssemblyName.ReferenceMatchesDefinition(name, a.GetName()))
-            match existingAssembly with
-            | Some a -> a
-            | None -> loadingErrors <- loadingErrors @ [args.Name]
-                      null 
-        )
-        
+                
         let typeDom = typeof<PluginProxyDomain>
-        domain.CreateInstanceAndUnwrap(typeDom.Assembly.FullName, typeDom.FullName) |> ignore
+        AppDomain.CurrentDomain.CreateInstanceAndUnwrap(typeDom.Assembly.FullName, typeDom.FullName) |> ignore
         let data = Assembly.GetExecutingAssembly()
         let executingAssembly = data.FullName
-        let asmLoaderProxy = domain.CreateInstanceAndUnwrap(executingAssembly, typeof<PluginProxyDomain>.FullName)
+        let asmLoaderProxy = AppDomain.CurrentDomain.CreateInstanceAndUnwrap(executingAssembly, typeof<PluginProxyDomain>.FullName)
         
         let typesd = asmLoaderProxy.GetType()
         let getdiag = typesd.GetMethod("GetAnalysisPlugins")
@@ -189,7 +197,6 @@ type SQPluginManager(basePath : string) =
                 if not(refass.FullName.Equals(plugin.Assembly.FullName)) then
                     plugin.RefAssemblies <- plugin.RefAssemblies @ [refass]
              
-        AppDomain.Unload(domain)
         pluginsOut
 
     let GetAssembliesFromFolder(files : string [])=

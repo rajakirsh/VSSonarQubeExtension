@@ -65,9 +65,7 @@ namespace VSSonarExtensionUi.ViewModel
     public class SonarQubeViewModel : IViewModelBase
     {
         #region Fields
-
-        public readonly PluginController AssemblyLoader = new PluginController();
-
+       
         /// <summary>
         ///     The analysisPlugin control.
         /// </summary>
